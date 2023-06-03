@@ -2,13 +2,15 @@ import requests
 import json
 import config
 import time
-
+from datetime import datetime, timedelta
 def debugPrint(text):
     config.myPrint(text)
 
 def decodeClassCode(text):
     return
 
+
+#入茶
 def login():
     user = config.ADMIN_USERNAME
     password = config.ADMIN_PASSWORD
@@ -75,32 +77,61 @@ def login():
     # {"code":404,"message":"账号已存在"}
     if data['code'] == 0:
         print("获取课程成功!")
+        # 获取当前时间
+        current_time = datetime.now()
+
+        # 存储筛选后的数据
+        filtered_data = []
+
+        # 遍历列表中的字典元素
+        for item in data["list"]:
+            # 将 msgtime 转换为 datetime 对象
+            msgtime = datetime.fromtimestamp(item["msgtime"])
+
+            # 计算时间差
+            time_diff = current_time - msgtime
+
+            # 判断时间差是否小于 2 天
+            if time_diff.days < 2:
+                # 构造新的字典元素
+                filtered_item = {
+                    "ID": item["ID"],
+                    "title": item["title"],
+                    "msgtime": msgtime.strftime("%Y-%m-%d %H:%M:%S")
+                }
+
+                # 将筛选后的数据添加到列表中
+                filtered_data.append(filtered_item)
+                config.MX_RIGHT_CLASS_list = filtered_data
     else:
         print(f"获取课程失败，错误信息：{data['message']}")
 
     return
 
 def regist():
-    # 获取用户输入
-    name = input("请输入 name：")
-    user = input("请输入 user：")
-    password = input("请输入 password：")
-    if config.ADMIN_TOKEN == "":
-        print("token为空，退出")
-        return
-    token = config.ADMIN_TOKEN # 已有的token
+    name = "name"
+    user = input("请输入用户名：")
+    password = input("请输入密码：")
+    token = config.ADMIN_TOKEN
 
-    # 构造请求payload
-    payload = f'name={name}&user={user}&password={password}&zhibo=&power=&role=user&type=Add_user&token={token}'
+    url = "https://boke.mxnet.top/api/user/add"
 
-    # 设置请求头
+    payload = json.dumps({
+        "name": name,
+        "user": user,
+        "password": password,
+        "role": "user",
+        "note": "",
+        "token": token
+    })
+
     headers = {
-        'authority': 'zhibojian.mxnet.top',
+        'authority': 'boke.mxnet.top',
         'accept': '*/*',
         'accept-language': 'zh-CN,zh;q=0.9',
-        'content-type': 'application/x-www-form-urlencoded',
-        'origin': 'https://zhibojian.mxnet.top',
-        'referer': 'https://zhibojian.mxnet.top/admin/pages/user/add',
+        'content-type': 'application/json',
+        'origin': 'https://boke.mxnet.top',
+        'referer': 'https://boke.mxnet.top/admin/',
         'sec-ch-ua': '"Google Chrome";v="113", "Chromium";v="113", "Not-A.Brand";v="24"',
         'sec-ch-ua-mobile': '?0',
         'sec-ch-ua-platform': '"macOS"',
@@ -109,18 +140,20 @@ def regist():
         'sec-fetch-site': 'same-origin',
         'user-agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/113.0.0.0 Safari/537.36'
     }
-    url = config.MX_LOGIN_API
-    # 发送请求
-    response = requests.post(url, headers=headers, data=payload).text
-    data = json.loads(response)
-    config.MX_CLASS_DICT = data
-    debugPrint(response)
-    # 输出响应结果
-    if config.MX_CLASS_DICT['code'] == 0:
-        print("注册成功！\n 昵称:{}\n用户名:{}\n密码:{}".format(name, user, password))
+
+    response = requests.request("POST", url, headers=headers, data=payload)
+    result = response.json()
+    print(result)
+
+    if result['code'] == 0:
+        uid = result['uid']
+        config.MX_USERID = uid
+        print("请求成功，UID：", uid)
     else:
-        print(f"注册失败，错误信息：{config.MX_CLASS_DICT['message']}")
-    return
+        error_message = result.get('message', '未知错误')
+        print("请求失败，错误信息：", error_message)
+
+
 
 def getUserId():
     token = config.ADMIN_TOKEN
@@ -174,7 +207,6 @@ def getUserId():
         index += 1
     # debugPrint(data_list)
     config.MX_USER_DICT = data_list
-    return
 
 def add():
     getUserId()
@@ -185,3 +217,43 @@ def add():
             break
     else:
         debugPrint(f"未找到用户 {userId}")
+
+#增加全部老师，试用
+def add_all_test():
+    url = "https://boke.mxnet.top/api/subscribe/batchadd"
+
+    id_list = [data['ID'] for data in config.MX_RIGHT_CLASS_list]
+    extime = int((datetime.now() + timedelta(days=7)).timestamp()) * 1000
+
+    payload = json.dumps({
+        "ulist": [
+            config.MX_USERID
+        ],
+        "rlist": [
+            {
+                "ID": id,
+                "extime": extime
+            } for id in id_list
+        ],
+        "token":config.ADMIN_TOKEN
+    })
+
+    headers = {
+        'authority': 'boke.mxnet.top',
+        'accept': '*/*',
+        'accept-language': 'zh-CN,zh;q=0.9',
+        'content-type': 'application/json',
+        'origin': 'https://boke.mxnet.top',
+        'referer': 'https://boke.mxnet.top/admin/',
+        'sec-ch-ua': '"Google Chrome";v="113", "Chromium";v="113", "Not-A.Brand";v="24"',
+        'sec-ch-ua-mobile': '?0',
+        'sec-ch-ua-platform': '"macOS"',
+        'sec-fetch-dest': 'empty',
+        'sec-fetch-mode': 'cors',
+        'sec-fetch-site': 'same-origin',
+        'user-agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/113.0.0.0 Safari/537.36'
+    }
+
+    response = requests.request("POST", url, headers=headers, data=payload)
+
+    print(response.text)
