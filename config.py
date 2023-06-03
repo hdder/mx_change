@@ -7,8 +7,10 @@ ADMIN_TMP_TOKEN = "111111"
 ADMIN_TOKEN = ""
 # 萌侠登陆接口
 MX_LOGIN_API = "https://zhibojian.mxnet.top/api"
-# 萌侠课程列表
-MX_CLASS_DICT = {}
+# 萌侠全部课程列表
+MX_ALL_CLASS_DICT = {}
+# 萌侠正常更新的课程列表
+MX_RIGHT_CLASS_DICT = {}
 # 萌侠用户列表
 MX_USER_DICT = []
 

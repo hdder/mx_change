@@ -2,13 +2,16 @@ import requests
 import json
 import config
 import time
+import datetime
 
 def debugPrint(text):
     config.myPrint(text)
 
+#删除课程
 def decodeClassCode(text):
     return
 
+#后台登陆
 def login():
     user = config.ADMIN_USERNAME
     password = config.ADMIN_PASSWORD
@@ -46,9 +49,9 @@ def login():
     else:
         print("获取token成功")
 
-
-    # 请求课表
-    payloadClass = 'type=Get_RoomList&pagesnum=-1&search=undefined&token={}'.format(token)
+# 请求课表
+def get_roomlist():
+    payloadClass = 'type=Get_RoomList&pagesnum=-1&search=undefined&token={}'.format(config.ADMIN_TOKEN)
     headers = {
         'authority': 'zhibojian.mxnet.top',
         'accept': '*/*',
@@ -66,11 +69,50 @@ def login():
         'user-agent': 'Mozilla/5.0 (Linux; Android 6.0; Nexus 5 Build/MRA58N) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/113.0.0.0 Mobile Safari/537.36'
     }
 
-    response = requests.request("POST", url, headers=headers, data=payloadClass)
+    response = requests.request("POST", config.MX_LOGIN_API, headers=headers, data=payloadClass)
 
     # 将响应解析为Python对象
     debugPrint(response.text)
-    data = json.loads(response.text)
+    data= json.loads(response.text)
+
+    for elem in data['list']:
+        # 将时间戳转换为正常时间格式
+        timestamp = elem['msgtime']
+        normal_time = datetime.datetime.fromtimestamp(timestamp)
+
+        # 格式化日期时间并更新到新字典
+        new_dict = {
+            'ID': elem['ID'],
+            'title': elem['title'],
+            'teaname': elem['teaname'],
+            'msgtime': normal_time.strftime('%Y-%m-%d %H:%M:%S')  # 格式化日期时间
+        }
+
+        # 输出全部mx老师列表
+        config.MX_ALL_CLASS_DICT=new_dict
+        print(new_dict)
+        # 获取当前时间
+        now = datetime.datetime.now()
+
+        # 创建空数组用于存储在两天内的数据
+        new_list = []
+
+        # 遍历原始数据列表
+        for elem in data['list']:
+            # 将时间戳转换为日期时间格式
+            timestamp = elem['msgtime']
+            normal_time = datetime.datetime.fromtimestamp(timestamp)
+
+            # 计算当前时间与数据时间之间的差值
+            time_delta = now - normal_time
+
+            # 如果时间差值在两天内
+            if time_delta.days < 2:
+                # 将该数据添加到新数组中
+                new_list.append(elem)
+
+        # 输出两天内正常的萌侠课表
+        print(new_list)
     # 输出响应结果
     # {"code":404,"message":"账号已存在"}
     if data['code'] == 0:
@@ -78,8 +120,7 @@ def login():
     else:
         print(f"获取课程失败，错误信息：{data['message']}")
 
-    return
-
+#用户注册
 def regist():
     # 获取用户输入
     name = input("请输入 name：")
@@ -122,6 +163,7 @@ def regist():
         print(f"注册失败，错误信息：{config.MX_CLASS_DICT['message']}")
     return
 
+#获取uid
 def getUserId():
     token = config.ADMIN_TOKEN
     url = config.MX_LOGIN_API
